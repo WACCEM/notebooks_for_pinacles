@@ -88,9 +88,8 @@ def process_zarr_to_netcdf(indir, infile, outdir, igroup, invarname, z_values, f
 
         time_value = time[i]
         time_str = str(time_value).replace(":", "-").replace(" ", "_").split(".")[0]
-        outtime = f"test_{invarname}_{time_str}"
-        
-        outfile = outdir + f"/test_{invarname}_{outtime}.nc"
+               
+        outfile = outdir + f"/test_{invarname}_{time_str}.nc"
         print("Writing: " + outfile)
         ds_out.to_netcdf(path=outfile, mode='w', format='NETCDF4', unlimited_dims='time')
         ds_out.close()
