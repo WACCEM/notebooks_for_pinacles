@@ -73,6 +73,16 @@ def process_zarr_to_netcdf(indir, infile, outdir, igroup, invarname, z_values, f
     it_time = find_closest_index(time, time_steps)
 
     for i in it_time:
+        time_value = time[i]
+        time_str = str(time_value).replace(":", "-").replace(" ", "_").split(".")[0]
+        outtime = f"test_{invarname}_{time_str}"
+        outfile = outdir + f"/test_{invarname}_{outtime}.nc"
+
+        # Check if the file already exists
+        if os.path.exists(outfile):
+            print(f"Skipping existing file: {outfile}")
+            continue
+
         outvar = np.expand_dims(zin[igroup][int(i), varindx, :, :, iz_range], axis=0)
 
         ds_out = xr.Dataset(
@@ -86,10 +96,6 @@ def process_zarr_to_netcdf(indir, infile, outdir, igroup, invarname, z_values, f
             attrs={"units": ("units", iunits), "long_name": ("long_name", lname)}
         )
 
-        time_value = time[i]
-        time_str = str(time_value).replace(":", "-").replace(" ", "_").split(".")[0]
-               
-        outfile = outdir + f"/test_{invarname}_{time_str}.nc"
         print("Writing: " + outfile)
         ds_out.to_netcdf(path=outfile, mode='w', format='NETCDF4', unlimited_dims='time')
         ds_out.close()
