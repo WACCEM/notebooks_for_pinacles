@@ -28,7 +28,7 @@ fi
 
 
 ## Input parameters
-Z_VALUES=(100 500 1000 1500 3000 4500 5500 7500 9500 10500 12000 16000)
+Z_VALUES=(100 500 1000 1500 3000 4500 5500 7500 9500 10500 12000 )
 FREQ="1h"  # Change this to desired frequency: '1h', '3h', '6h', '30min',etc
 
 # Loop over each subdirectory in the parent directory
