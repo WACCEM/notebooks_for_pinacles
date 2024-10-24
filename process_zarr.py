@@ -13,26 +13,33 @@ from dask.distributed import Client, LocalCluster
 def find_closest_index(array, target):
     """
     Finds the indices of the closest values to target in array, supporting datetime and numeric values.
+    For datetime values, it ensures exact match.
     """
     if isinstance(array, (pd.Series, pd.Index)):
         array = array.to_numpy()
     
-    array.sort()
-
+    #array.sort()
+        
     if isinstance(target, list):
         target = np.array(target)
     elif isinstance(target, (pd.Series, pd.Index)):
         target = target.to_numpy()
-
+        
     if np.issubdtype(array.dtype, np.datetime64):
-        array = array.astype('datetime64[s]').astype(np.float64)
+        array = array.astype('datetime64[s]')
+        target = target.astype('datetime64[s]')
+        # Handle exact matches for datetime
+        exact_indices = np.where(np.isin(array, target))[0]
+        return exact_indices
+    else:
+        if np.issubdtype(target.dtype, np.datetime64):
+            target = target.astype('datetime64[s]').astype(np.float64)
+        if np.issubdtype(array.dtype, np.datetime64):
+            array = array.astype('datetime64[s]').astype(np.float64)
 
-    if np.issubdtype(target.dtype, np.datetime64):
-        target = target.astype('datetime64[s]').astype(np.float64)
-
-    closest_indices = np.argmin(np.abs(array[:, None] - target), axis=0)
-    
-    return closest_indices
+        # Handle closest matches for other numeric types
+        closest_indices = np.argmin(np.abs(array[:, None] - target), axis=0)
+        return closest_indices
 
 
 def get_variable_attrs(vardic, igroup, invarname):
@@ -174,25 +181,50 @@ def process_zarr_to_netcdf(indir, infile, outdir, igroup, invarname,
     # Get variable index from attribute
     varindx = zin.attrs[igroup + "_variable_index_map"][invarname]
 
-    # Find closest time indices from input
-    if freq is not None:
-        time0 = time_in[0]
-        time1 = time_in[-1]
-        time_steps = pd.date_range(start=time0, end=time1, freq=freq)
-        it_time = find_closest_index(time_in, time_steps)
-    else:
-        # Make full time indices
-        it_time = np.arange(0, len(time_in), 1)
-
-    # Find times within input range
+    # If start_time and end_time are provided, convert to Pandas Datetime
     if (start_time is not None) & (end_time is not None):
-        # Convert to Pandas Datetime
         _start_time = pd.to_datetime(start_time)
         _end_time = pd.to_datetime(end_time)
-        # Convert to Pandas DatetimeIndex
         _time_in = pd.DatetimeIndex(time_in)
-        # Find time indices within the input range
-        it_time = np.where((_time_in >= _start_time) & (_time_in <= _end_time))[0]
+    
+    # Find closest time indices from input considering frequency and range
+    if freq is not None:
+        if (start_time is not None) & (end_time is not None):
+            time_steps = pd.date_range(start=_start_time, end=_end_time, freq=freq)
+            it_time = find_closest_index(_time_in, time_steps)
+        else:
+            time0 = time_in[0]
+            time1 = time_in[-1]
+            time_steps = pd.date_range(start=time0, end=time1, freq=freq)
+            it_time = find_closest_index(time_in, time_steps)
+    else:
+        # Make full time indices
+        if (start_time is not None) & (end_time is not None):
+            it_time = np.where((_time_in >= _start_time) & (_time_in <= _end_time))[0]
+        else:
+            it_time = np.arange(len(time_in))
+
+
+
+    # # Find closest time indices from input
+    # if freq is not None:
+    #     time0 = time_in[0]
+    #     time1 = time_in[-1]
+    #     time_steps = pd.date_range(start=time0, end=time1, freq=freq)
+    #     it_time = find_closest_index(time_in, time_steps)
+    # else:
+    #     # Make full time indices
+    #     it_time = np.arange(0, len(time_in), 1)
+
+    # # Find times within input range
+    # if (start_time is not None) & (end_time is not None):
+    #     # Convert to Pandas Datetime
+    #     _start_time = pd.to_datetime(start_time)
+    #     _end_time = pd.to_datetime(end_time)
+    #     # Convert to Pandas DatetimeIndex
+    #     _time_in = pd.DatetimeIndex(time_in)
+    #     # Find time indices within the input range
+    #     it_time = np.where((_time_in >= _start_time) & (_time_in <= _end_time))[0]
 
     # Check number of times
     if len(it_time) > 0:
