@@ -1,6 +1,6 @@
 ##necessary libraries
 import argparse
-import os
+import os, time
 import zarr
 import numpy as np
 import json
@@ -110,18 +110,26 @@ def extract_3dvar(data_dict):
 
     # Get 3D variable
     outvar = np.expand_dims(zin[igroup][int(tt), varindx, :, :, iz_range], axis=0)
+    # Variable attributes
+    outvar_attrs = {
+        "long_name": lname,
+        "units": iunits, 
+    }
 
     # Make output Xarray DataSet
-    ds_out = xr.Dataset(
-        {invarname: (["time", "X", "Y", "Z"], outvar)},
-        coords={
-            "time": (["time"], np.array([time_in], dtype='object')),
-            "X": (["X"], X),
-            "Y": (["Y"], Y),
-            "Z": (["Z"], Z[iz_range])
-        },
-        attrs={"units": ("units", iunits), "long_name": ("long_name", lname)}
-    )
+    var_dict = {
+        invarname: (["time", "X", "Y", "Z"], outvar, outvar_attrs),
+    }
+    coord_dict = {
+        "time": (["time"], np.array([time_in], dtype='object')),
+        "X": (["X"], X),
+        "Y": (["Y"], Y),
+        "Z": (["Z"], Z[iz_range])
+    }
+    gattr_dict = {
+        'created_on': time.ctime(time.time()),
+    }
+    ds_out = xr.Dataset(var_dict, coords=coord_dict, attrs=gattr_dict)
     # Change the encoding for the time variable
     ds_out["time"].encoding["units"] = f"seconds since {ref_time}"
     ds_out["time"].time.encoding["calendar"] = "standard"
@@ -134,10 +142,12 @@ def extract_3dvar(data_dict):
     return outfile
 
 
-def process_zarr_to_netcdf(indir, infile, outdir, igroup, invarname, 
-                           z_values=None, freq=None,
-                           start_time=None, end_time=None, ref_time=None,
-                           run_parallel=0, n_workers=1):
+def process_zarr_to_netcdf(
+        indir, infile, outdir, igroup, invarname, 
+        z_values=None, freq=None,
+        start_time=None, end_time=None, ref_time=None,
+        run_parallel=0, n_workers=1,
+):
     """
     Extract a variable from zarr and write to netCDF files.
 
