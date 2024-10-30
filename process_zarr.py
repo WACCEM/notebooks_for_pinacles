@@ -17,9 +17,7 @@ def find_closest_index(array, target):
     """
     if isinstance(array, (pd.Series, pd.Index)):
         array = array.to_numpy()
-    
-    #array.sort()
-        
+       
     if isinstance(target, list):
         target = np.array(target)
     elif isinstance(target, (pd.Series, pd.Index)):
@@ -83,6 +81,7 @@ def extract_3dvar(data_dict):
     z_values = data_dict['z_values']
     iunits = data_dict['iunits']
     lname = data_dict['lname']
+    ref_time = data_dict['ref_time']
 
     # Get coordinate variables
     X = zin["X"][:]
@@ -123,6 +122,9 @@ def extract_3dvar(data_dict):
         },
         attrs={"units": ("units", iunits), "long_name": ("long_name", lname)}
     )
+    # Change the encoding for the time variable
+    ds_out["time"].encoding["units"] = f"seconds since {ref_time}"
+    ds_out["time"].time.encoding["calendar"] = "standard"
 
     # print(f"Writing: {outfile}")
     ds_out.to_netcdf(path=outfile, mode='w', format='NETCDF4', unlimited_dims='time')
@@ -134,7 +136,7 @@ def extract_3dvar(data_dict):
 
 def process_zarr_to_netcdf(indir, infile, outdir, igroup, invarname, 
                            z_values=None, freq=None,
-                           start_time=None, end_time=None,
+                           start_time=None, end_time=None, ref_time=None,
                            run_parallel=0, n_workers=1):
     """
     Extract a variable from zarr and write to netCDF files.
@@ -158,6 +160,8 @@ def process_zarr_to_netcdf(indir, infile, outdir, igroup, invarname,
             Start datetime to process ('yyyy-mo-dyThh:mm:ss').
         end_time: string, optional, default=None
             End datetime to process ('yyyy-mo-dyThh:mm:ss').
+        ref_time: string, optional, default=None
+            Reference datetime ('yyyy-mo-dyThh:mm:ss')
         run_parallel: int, optional, default=0
             Flag to run processing in parallel.
         n_workers: int, optional, default=1
@@ -181,50 +185,53 @@ def process_zarr_to_netcdf(indir, infile, outdir, igroup, invarname,
     # Get variable index from attribute
     varindx = zin.attrs[igroup + "_variable_index_map"][invarname]
 
-    # If start_time and end_time are provided, convert to Pandas Datetime
-    if (start_time is not None) & (end_time is not None):
-        _start_time = pd.to_datetime(start_time)
-        _end_time = pd.to_datetime(end_time)
-        _time_in = pd.DatetimeIndex(time_in)
-    
-    # Find closest time indices from input considering frequency and range
-    if freq is not None:
-        if (start_time is not None) & (end_time is not None):
-            time_steps = pd.date_range(start=_start_time, end=_end_time, freq=freq)
-            it_time = find_closest_index(_time_in, time_steps)
-        else:
-            time0 = time_in[0]
-            time1 = time_in[-1]
-            time_steps = pd.date_range(start=time0, end=time1, freq=freq)
-            it_time = find_closest_index(time_in, time_steps)
-    else:
-        # Make full time indices
-        if (start_time is not None) & (end_time is not None):
-            it_time = np.where((_time_in >= _start_time) & (_time_in <= _end_time))[0]
-        else:
-            it_time = np.arange(len(time_in))
-
-
-
-    # # Find closest time indices from input
-    # if freq is not None:
-    #     time0 = time_in[0]
-    #     time1 = time_in[-1]
-    #     time_steps = pd.date_range(start=time0, end=time1, freq=freq)
-    #     it_time = find_closest_index(time_in, time_steps)
-    # else:
-    #     # Make full time indices
-    #     it_time = np.arange(0, len(time_in), 1)
-
-    # # Find times within input range
+    # # If start_time and end_time are provided, convert to Pandas Datetime
     # if (start_time is not None) & (end_time is not None):
-    #     # Convert to Pandas Datetime
     #     _start_time = pd.to_datetime(start_time)
     #     _end_time = pd.to_datetime(end_time)
-    #     # Convert to Pandas DatetimeIndex
     #     _time_in = pd.DatetimeIndex(time_in)
-    #     # Find time indices within the input range
-    #     it_time = np.where((_time_in >= _start_time) & (_time_in <= _end_time))[0]
+    
+    # # Find closest time indices from input considering frequency and range
+    # if freq is not None:
+    #     if (start_time is not None) & (end_time is not None):
+    #         time_steps = pd.date_range(start=_start_time, end=_end_time, freq=freq)
+    #         it_time = find_closest_index(_time_in, time_steps)
+    #     else:
+    #         time0 = time_in[0]
+    #         time1 = time_in[-1]
+    #         time_steps = pd.date_range(start=time0, end=time1, freq=freq)
+    #         it_time = find_closest_index(time_in, time_steps)
+    # else:
+    #     # Make full time indices
+    #     if (start_time is not None) & (end_time is not None):
+    #         it_time = np.where((_time_in >= _start_time) & (_time_in <= _end_time))[0]
+    #     else:
+    #         it_time = np.arange(len(time_in))
+
+
+    # Find closest time indices from input
+    if freq is not None:
+        time0 = time_in[0]
+        time1 = time_in[-1]
+        time_steps = pd.date_range(start=time0, end=time1, freq=freq)
+        it_time = find_closest_index(time_in, time_steps)
+    else:
+        # Make full time indices
+        it_time = np.arange(0, len(time_in), 1)
+
+    # Find times within input range
+    if (start_time is not None) & (end_time is not None):
+        # Convert to Pandas Datetime
+        _start_time = pd.to_datetime(start_time)
+        _end_time = pd.to_datetime(end_time)
+        # Subset times after frequency is matched
+        time_freq = time_in[it_time]
+        # Convert to Pandas DatetimeIndex
+        _time_in = pd.DatetimeIndex(time_freq)
+        # Subset times within the input range
+        time_out = _time_in[(_time_in >= _start_time) & (_time_in <= _end_time)]
+        # Find indices in time_in that match time_out
+        it_time = pd.DatetimeIndex(time_in).get_indexer(time_out)
 
     # Check number of times
     if len(it_time) > 0:
@@ -250,6 +257,7 @@ def process_zarr_to_netcdf(indir, infile, outdir, igroup, invarname,
             data_dict['z_values'] = z_values
             data_dict['iunits'] = iunits
             data_dict['lname'] = lname
+            data_dict['ref_time'] = ref_time
             # Call extract function
             if run_parallel == 0:
                 result = extract_3dvar(data_dict)
@@ -278,11 +286,12 @@ if __name__ == "__main__":
     parser.add_argument('--freq', type=str, default=None, help='Frequency of the output time steps (e.g., 1h, 3h, 6h, 30min).')
     parser.add_argument('--s_time', type=str, default=None, help='Start datetime to process (yyyy-mo-dyThh:mm:ss).')
     parser.add_argument('--e_time', type=str, default=None, help='End datetime to process (yyyy-mo-dyThh:mm:ss).')
+    parser.add_argument('--ref_time', type=str, default='2000-01-01T00:00:00', help='Reference datetime (yyyy-mo-dyThh:mm:ss).')
     parser.add_argument("--parallel", help="Flag to run in parallel (0:serial, 1:parallel)", type=int, default=0)
     parser.add_argument("--n_workers", help="Number of workers to run in parallel", type=int, default=1)
     args = parser.parse_args()
 
     process_zarr_to_netcdf(args.indir, args.infile, args.outdir, args.igroup, args.invarname, 
                            z_values=args.z_values, freq=args.freq,
-                           start_time=args.s_time, end_time=args.e_time,
+                           start_time=args.s_time, end_time=args.e_time, ref_time=args.ref_time,
                            run_parallel=args.parallel, n_workers=args.n_workers)
