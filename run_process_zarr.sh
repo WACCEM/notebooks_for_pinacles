@@ -8,11 +8,11 @@ PARENT_DIR="/pscratch/sd/w/wcmca1/PINACLES/rce/1km/run/"
 # Parameters for processing
 # IGROUP="ScalarState" # options are "ScalarState", "VelocityState" and "Diagnos"
 IGROUP="DiagnosticState"
-INVARNAME="thetav" # for more info about available variables visit https://portal.nersc.gov/cfs/m1867/pinacles_docs/site/fields_zarr/ 
+INVARNAME="buoyancy" # for more info about available variables visit https://portal.nersc.gov/cfs/m1867/pinacles_docs/site/fields_zarr/ 
 
 # Output directory for NetCDF files
-# OUTDIR="/pscratch/sd/p/paccini/temp/output_pinacles/${INVARNAME}"
-OUTDIR="/pscratch/sd/f/feng045/PINACLES/rce/1km/fields3d/${INVARNAME}"
+OUTDIR="/pscratch/sd/p/paccini/temp/output_pinacles/${INVARNAME}"
+# OUTDIR="/pscratch/sd/f/feng045/PINACLES/rce/1km/fields3d/${INVARNAME}"
 
 # Create the output directory if it does not exist
 mkdir -p "$OUTDIR"
@@ -36,16 +36,16 @@ n_workers=32  # number of workers (CPU in a node)
 # Vertical levels
 Z_VALUES=(100 300 500 700 900 1100 1300 1500 1700 1900 2100 2300 2500 2700 2900 3100 3300 3500 3700 3900 4100 4300 4500 4700 4900 5100 )
 # Temporal frequency: '1h', '3h', '6h', '30min',etc
-FREQ="30min"
+FREQ="12h"
 # Time period (format: 'yyyy-mo-dyThh:mm:ss')
-start_time='2000-01-07T00:00:00'
-end_time='2000-01-09T00:00:00'
+start_time='2000-01-25T00:00:00'
+end_time='2000-02-20T00:00:00'
 # start_time='2000-02-20T00:00:00'
 # end_time='2000-02-25T00:00:00'
 
 # Reference time (for output netCDF file time encoding)
 # Default: '2000-01-01T00:00:00'
-ref_time='1970-01-01T00:00:00'  # Epoch time
+ref_time='2000-01-01T00:00:00'  # Epoch time
 
 # Loop over each subdirectory in the parent directory
 for SUBDIR in "$PARENT_DIR"/test_1km_01_started_*/; do

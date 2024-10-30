@@ -184,6 +184,7 @@ def process_zarr_to_netcdf(
     zin = zarr.open((indir + '/' + infile), "r")
     # Get coordinate variables
     time_in = zin["datetime"][:]
+    _time_in = pd.DatetimeIndex(time_in)
     
     # Read zarr file attributes
     with open((indir + '/' + infile + '/.zattrs')) as fp:
@@ -195,33 +196,9 @@ def process_zarr_to_netcdf(
     # Get variable index from attribute
     varindx = zin.attrs[igroup + "_variable_index_map"][invarname]
 
-    # # If start_time and end_time are provided, convert to Pandas Datetime
-    # if (start_time is not None) & (end_time is not None):
-    #     _start_time = pd.to_datetime(start_time)
-    #     _end_time = pd.to_datetime(end_time)
-    #     _time_in = pd.DatetimeIndex(time_in)
-    
-    # # Find closest time indices from input considering frequency and range
-    # if freq is not None:
-    #     if (start_time is not None) & (end_time is not None):
-    #         time_steps = pd.date_range(start=_start_time, end=_end_time, freq=freq)
-    #         it_time = find_closest_index(_time_in, time_steps)
-    #     else:
-    #         time0 = time_in[0]
-    #         time1 = time_in[-1]
-    #         time_steps = pd.date_range(start=time0, end=time1, freq=freq)
-    #         it_time = find_closest_index(time_in, time_steps)
-    # else:
-    #     # Make full time indices
-    #     if (start_time is not None) & (end_time is not None):
-    #         it_time = np.where((_time_in >= _start_time) & (_time_in <= _end_time))[0]
-    #     else:
-    #         it_time = np.arange(len(time_in))
-
-
     # Find closest time indices from input
     if freq is not None:
-        time0 = time_in[0]
+        time0 = pd.to_datetime(ref_time) #time_in[0]
         time1 = time_in[-1]
         time_steps = pd.date_range(start=time0, end=time1, freq=freq)
         it_time = find_closest_index(time_in, time_steps)
@@ -242,6 +219,7 @@ def process_zarr_to_netcdf(
         time_out = _time_in[(_time_in >= _start_time) & (_time_in <= _end_time)]
         # Find indices in time_in that match time_out
         it_time = pd.DatetimeIndex(time_in).get_indexer(time_out)
+    
 
     # Check number of times
     if len(it_time) > 0:
