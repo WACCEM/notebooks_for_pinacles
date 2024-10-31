@@ -8,7 +8,7 @@ PARENT_DIR="/pscratch/sd/w/wcmca1/PINACLES/rce/1km/run/"
 # Parameters for processing
 # IGROUP="ScalarState" # options are "ScalarState", "VelocityState" and "Diagnos"
 IGROUP="DiagnosticState"
-INVARNAME="thetav" # for more info about available variables visit https://portal.nersc.gov/cfs/m1867/pinacles_docs/site/fields_zarr/ 
+INVARNAME="buoyancy" # for more info about available variables visit https://portal.nersc.gov/cfs/m1867/pinacles_docs/site/fields_zarr/ 
 
 # Output directory for NetCDF files
 OUTDIR="/pscratch/sd/p/paccini/temp/output_pinacles/${INVARNAME}"
@@ -29,7 +29,7 @@ else
 fi
 
 ## Set parallel options
-run_parallel=0  # 0: serial, 1: parallel
+run_parallel=1  # 0: serial, 1: parallel
 n_workers=32  # number of workers (CPU in a node)
 
 ## Optional input parameters
@@ -38,8 +38,14 @@ Z_VALUES=(100 300 500 700 900 1100 1300 1500 1700 1900 2100 2300 2500 2700 2900 
 # Temporal frequency: '1h', '3h', '6h', '30min',etc
 FREQ="12h"
 # Time period (format: 'yyyy-mo-dyThh:mm:ss')
-start_time='2000-02-20T00:00:00'
-end_time='2000-02-25T00:00:00'
+start_time='2000-01-25T00:00:00'
+end_time='2000-02-20T00:00:00'
+# start_time='2000-02-20T00:00:00'
+# end_time='2000-02-25T00:00:00'
+
+# Reference time (for output netCDF file time encoding)
+# Default: '2000-01-01T00:00:00'
+ref_time='2000-01-01T00:00:00'  # Epoch time
 
 # Loop over each subdirectory in the parent directory
 for SUBDIR in "$PARENT_DIR"/test_1km_01_started_*/; do
@@ -50,7 +56,7 @@ for SUBDIR in "$PARENT_DIR"/test_1km_01_started_*/; do
   
     python process_zarr.py --indir "$SUBDIR" --infile "$INFILE" --outdir "$OUTDIR" --igroup "$IGROUP" --invarname "$INVARNAME" \
         --z_values "${Z_VALUES[@]}" --freq ${FREQ} \
-        --s_time ${start_time} --e_time ${end_time} \
+        --s_time ${start_time} --e_time ${end_time} --ref_time ${ref_time} \
         --parallel ${run_parallel} --n_workers ${n_workers}
     
     
